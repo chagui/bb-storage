@@ -23,14 +23,36 @@ const (
 )
 
 type ApplicationConfiguration struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	HttpClient         *client.Configuration  `protobuf:"bytes,1,opt,name=http_client,json=httpClient,proto3" json:"http_client,omitempty"`
-	JwksUrl            string                 `protobuf:"bytes,2,opt,name=jwks_url,json=jwksUrl,proto3" json:"jwks_url,omitempty"`
-	ConfigMapNamespace string                 `protobuf:"bytes,3,opt,name=config_map_namespace,json=configMapNamespace,proto3" json:"config_map_namespace,omitempty"`
-	ConfigMapName      string                 `protobuf:"bytes,4,opt,name=config_map_name,json=configMapName,proto3" json:"config_map_name,omitempty"`
-	ConfigMapKey       string                 `protobuf:"bytes,5,opt,name=config_map_key,json=configMapKey,proto3" json:"config_map_key,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Configuration options for the HTTP client that is used to download
+	// the JSON Web Key Set (JWKS).
+	HttpClient *client.Configuration `protobuf:"bytes,1,opt,name=http_client,json=httpClient,proto3" json:"http_client,omitempty"`
+	// The URL of the JWKS to download.
+	//
+	// Deprecated: use jwks_urls instead. If both are set, this URL is
+	// treated as an additional entry in jwks_urls.
+	//
+	// Deprecated: Marked as deprecated in github.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmap/sync_jwks_to_configmap.proto.
+	JwksUrl string `protobuf:"bytes,2,opt,name=jwks_url,json=jwksUrl,proto3" json:"jwks_url,omitempty"`
+	// The namespace in which the ConfigMap exists in which the JWKS
+	// should be stored.
+	ConfigMapNamespace string `protobuf:"bytes,3,opt,name=config_map_namespace,json=configMapNamespace,proto3" json:"config_map_namespace,omitempty"`
+	// The name of the ConfigMap in which the JWKS should be stored.
+	ConfigMapName string `protobuf:"bytes,4,opt,name=config_map_name,json=configMapName,proto3" json:"config_map_name,omitempty"`
+	// The key in the ConfigMap in which the JWKS should be stored.
+	ConfigMapKey string `protobuf:"bytes,5,opt,name=config_map_key,json=configMapKey,proto3" json:"config_map_key,omitempty"`
+	// The URLs of the JWKSes to download. The keys contained in the
+	// responses are merged into a single JWKS before being written to
+	// the ConfigMap. Keys ("kid") that are duplicated across responses
+	// must be byte-for-byte identical; distinct keys sharing the same
+	// "kid" cause the process to fail, as silently discarding one would
+	// make tokens signed by it unverifiable. As "kid" is optional under
+	// RFC 7517, keys that omit it are all preserved verbatim (only
+	// exact duplicates are merged), since there is no key ID to
+	// conflict on.
+	JwksUrls      []string `protobuf:"bytes,6,rep,name=jwks_urls,json=jwksUrls,proto3" json:"jwks_urls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApplicationConfiguration) Reset() {
@@ -70,6 +92,7 @@ func (x *ApplicationConfiguration) GetHttpClient() *client.Configuration {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in github.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmap/sync_jwks_to_configmap.proto.
 func (x *ApplicationConfiguration) GetJwksUrl() string {
 	if x != nil {
 		return x.JwksUrl
@@ -98,18 +121,26 @@ func (x *ApplicationConfiguration) GetConfigMapKey() string {
 	return ""
 }
 
+func (x *ApplicationConfiguration) GetJwksUrls() []string {
+	if x != nil {
+		return x.JwksUrls
+	}
+	return nil
+}
+
 var File_github_com_buildbarn_bb_storage_pkg_proto_configuration_sync_jwks_to_configmap_sync_jwks_to_configmap_proto protoreflect.FileDescriptor
 
 const file_github_com_buildbarn_bb_storage_pkg_proto_configuration_sync_jwks_to_configmap_sync_jwks_to_configmap_proto_rawDesc = "" +
 	"\n" +
-	"kgithub.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmap/sync_jwks_to_configmap.proto\x12.buildbarn.configuration.sync_jwks_to_configmap\x1aPgithub.com/buildbarn/bb-storage/pkg/proto/configuration/http/client/client.proto\"\x8a\x02\n" +
+	"kgithub.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmap/sync_jwks_to_configmap.proto\x12.buildbarn.configuration.sync_jwks_to_configmap\x1aPgithub.com/buildbarn/bb-storage/pkg/proto/configuration/http/client/client.proto\"\xab\x02\n" +
 	"\x18ApplicationConfiguration\x12S\n" +
 	"\vhttp_client\x18\x01 \x01(\v22.buildbarn.configuration.http.client.ConfigurationR\n" +
-	"httpClient\x12\x19\n" +
-	"\bjwks_url\x18\x02 \x01(\tR\ajwksUrl\x120\n" +
+	"httpClient\x12\x1d\n" +
+	"\bjwks_url\x18\x02 \x01(\tB\x02\x18\x01R\ajwksUrl\x120\n" +
 	"\x14config_map_namespace\x18\x03 \x01(\tR\x12configMapNamespace\x12&\n" +
 	"\x0fconfig_map_name\x18\x04 \x01(\tR\rconfigMapName\x12$\n" +
-	"\x0econfig_map_key\x18\x05 \x01(\tR\fconfigMapKeyBPZNgithub.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmapb\x06proto3"
+	"\x0econfig_map_key\x18\x05 \x01(\tR\fconfigMapKey\x12\x1b\n" +
+	"\tjwks_urls\x18\x06 \x03(\tR\bjwksUrlsBPZNgithub.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmapb\x06proto3"
 
 var (
 	file_github_com_buildbarn_bb_storage_pkg_proto_configuration_sync_jwks_to_configmap_sync_jwks_to_configmap_proto_rawDescOnce sync.Once

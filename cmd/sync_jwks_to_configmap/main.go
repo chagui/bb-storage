@@ -12,6 +12,7 @@ import (
 	"github.com/buildbarn/bb-storage/pkg/proto/configuration/sync_jwks_to_configmap"
 	"github.com/buildbarn/bb-storage/pkg/util"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -53,34 +54,52 @@ func main() {
 			return util.StatusWrapf(err, "Failed to read configuration from %s", os.Args[1])
 		}
 
-		// Send a HTTP request to fetch the JWKS.
+		// jwks_url is deprecated in favour of jwks_urls, but is
+		// still honored for backward compatibility: if set, it
+		// is treated as an additional URL to fetch.
+		urls := configuration.JwksUrls
+		if configuration.JwksUrl != "" {
+			urls = append(append([]string{}, urls...), configuration.JwksUrl)
+		}
+		if len(urls) == 0 {
+			return status.Error(codes.InvalidArgument, "No JWKS URLs configured")
+		}
+
+		// Send an HTTP request to fetch each JWKS in parallel,
+		// sharing a single HTTP client so that all requests are
+		// subject to the same retry and timeout behavior.
 		roundTripper, err := http_client.NewRoundTripperFromConfiguration(configuration.HttpClient)
 		if err != nil {
 			return util.StatusWrap(err, "Failed to create HTTP client")
 		}
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, configuration.JwksUrl, nil)
-		if err != nil {
-			return util.StatusWrap(err, "Failed to create HTTP request")
-		}
 		httpClient := &http.Client{Transport: roundTripper}
-		response, err := httpClient.Do(request)
-		if err != nil {
-			return util.StatusWrap(err, "Failed to perform HTTP request")
+
+		keysPerURL := make([][]map[string]any, len(urls))
+		group, groupCtx := errgroup.WithContext(ctx)
+		for i, url := range urls {
+			i, url := i, url
+			group.Go(func() error {
+				keys, err := fetchJWKS(groupCtx, httpClient, url)
+				if err != nil {
+					return util.StatusWrapf(err, "Failed to fetch JWKS from %#v", url)
+				}
+				keysPerURL[i] = keys
+				return nil
+			})
 		}
-		if response.StatusCode != http.StatusOK {
-			response.Body.Close()
-			return status.Errorf(codes.Unavailable, "HTTP request failed with status %#v", response.Status)
+		if err := group.Wait(); err != nil {
+			return err
 		}
 
-		// Ensure that the file that is fetched is a valid JSON
-		// object. This ensures that if the server misbehaves
-		// (e.g., serves a static HTML file), we don't overwrite
-		// any previously downloaded JWKS.
-		var jwks map[string]any
-		err = json.NewDecoder(response.Body).Decode(&jwks)
-		response.Body.Close()
+		// Merge the keys served by every URL into a single JWKS.
+		// This ensures that if the same "kid" is served by
+		// multiple URLs with a different key, we don't overwrite
+		// any previously downloaded JWKS with a JWKS that would
+		// leave tokens signed with the discarded key
+		// unverifiable.
+		jwks, err := mergeJWKS(keysPerURL, urls)
 		if err != nil {
-			return util.StatusWrap(err, "Failed to read and unmarshal HTTP response")
+			return util.StatusWrap(err, "Failed to merge JWKSes")
 		}
 		marshaledJWKS, err := json.Marshal(jwks)
 		if err != nil {

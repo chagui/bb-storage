@@ -1,9 +1,12 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//tools:container.bzl", "container_push_official", "multiarch_go_image")
 
 go_library(
     name = "sync_jwks_to_configmap_lib",
-    srcs = ["main.go"],
+    srcs = [
+        "jwks_merge.go",
+        "main.go",
+    ],
     importpath = "github.com/buildbarn/bb-storage/cmd/sync_jwks_to_configmap",
     visibility = ["//visibility:private"],
     deps = [
@@ -18,6 +21,7 @@ go_library(
         "@io_k8s_client_go//rest",
         "@org_golang_google_grpc//codes",
         "@org_golang_google_grpc//status",
+        "@org_golang_x_sync//errgroup",
     ],
 )
 
@@ -27,13 +31,25 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
+go_test(
+    name = "sync_jwks_to_configmap_test",
+    srcs = ["jwks_merge_test.go"],
+    embed = [":sync_jwks_to_configmap_lib"],
+    deps = [
+        "//pkg/testutil",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+    ],
+)
+
 multiarch_go_image(
     name = "sync_jwks_to_configmap_container",
     binary = ":sync_jwks_to_configmap",
 )
 
 container_push_official(
-    name = "sync_jwks_to_configmap_container_push",
+    name = "sync_jwks_to_configmap_container_push_datadog",
     component = "sync-jwks-to-configmap",
     image = ":sync_jwks_to_configmap_container",
 )

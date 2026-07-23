@@ -12,7 +12,10 @@ message ApplicationConfiguration {
   buildbarn.configuration.http.client.Configuration http_client = 1;
 
   // The URL of the JWKS to download.
-  string jwks_url = 2;
+  //
+  // Deprecated: use jwks_urls instead. If both are set, this URL is
+  // treated as an additional entry in jwks_urls.
+  string jwks_url = 2 [deprecated = true];
 
   // The namespace in which the ConfigMap exists in which the JWKS
   // should be stored.
@@ -23,4 +26,15 @@ message ApplicationConfiguration {
 
   // The key in the ConfigMap in which the JWKS should be stored.
   string config_map_key = 5;
+
+  // The URLs of the JWKSes to download. The keys contained in the
+  // responses are merged into a single JWKS before being written to
+  // the ConfigMap. Keys ("kid") that are duplicated across responses
+  // must be byte-for-byte identical; distinct keys sharing the same
+  // "kid" cause the process to fail, as silently discarding one would
+  // make tokens signed by it unverifiable. As "kid" is optional under
+  // RFC 7517, keys that omit it are all preserved verbatim (only
+  // exact duplicates are merged), since there is no key ID to
+  // conflict on.
+  repeated string jwks_urls = 6;
 }
