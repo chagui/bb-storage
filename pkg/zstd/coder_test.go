@@ -126,9 +126,9 @@ func TestEncodeAndDecodeSingleAllocation(t *testing.T) {
 	require.Equal(t, data, decoded)
 
 	// The tables of the backing instances are allocated lazily based
-	// on the data that is fed through them. Warm up until they have
-	// reached their steady size.
-	for range 10 {
+	// on the data that is fed through them. There is one instance per
+	// CPU, so visit all of them before measuring steady-state use.
+	for range runtime.NumCPU() {
 		bb_zstd.Encode(data)
 		_, err := bb_zstd.Decode(compressed, len(data))
 		require.NoError(t, err)
